@@ -1,4 +1,5 @@
 <?php
+
 /*
  * auto observer for IndexNow submission on product or category update
  * @package admin
@@ -9,6 +10,11 @@ class zcObserverIndexNow extends base
 {
     public function __construct()
     {
+        // prevent submission from a local/dev site
+        if (file_exists(DIR_FS_ADMIN . 'includes/local/configure.php')) {
+            return;
+        }
+
         $this->attach(
             $this,
             [
@@ -18,7 +24,7 @@ class zcObserverIndexNow extends base
         );
     }
 
-    public function update(&$class, $eventID, &$p1, &$p2, &$p3, &$p4)
+    public function update(&$class, $eventID, $p1): void
     {
         global $db;
         switch ($eventID) {
@@ -49,7 +55,7 @@ class zcObserverIndexNow extends base
         }
     }
 
-    private function submitToIndexNow($url)
+    private function submitToIndexNow($url): void
     {
         global $messageStack;
         $indexnow_key = ZX_INDEXNOW_KEY;
@@ -66,7 +72,6 @@ class zcObserverIndexNow extends base
 
         curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         $indexnow_responses = [
             200 => ['OK', 'URL submitted successfully'],
@@ -78,7 +83,7 @@ class zcObserverIndexNow extends base
         ];
 
         if (isset($indexnow_responses[$http_code])) {
-            $message = "IndexNow response: {$indexnow_responses[$http_code][0]} - {$indexnow_responses[$http_code][1]}";
+            $message = "IndexNow response $http_code: {$indexnow_responses[$http_code][0]} - {$indexnow_responses[$http_code][1]}";
         } else {
             $message = "IndexNow submission failed. HTTP code: $http_code";
         }
