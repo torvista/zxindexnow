@@ -1,12 +1,17 @@
 <?php
-/*
+
+declare(strict_types=1);
+/**
  * auto observer for IndexNow submission on product or category update
  * @package admin
  * Copyright 2025 ZenExpert - https://zenexpert.com
+ * @version 07 June 2026 torvista
  */
 
 class zcObserverIndexNow extends base
 {
+    // allow disabling of the submission for testing purposes only
+    private bool $noSubmit = false;
     public function __construct()
     {
         $this->attach(
@@ -18,38 +23,34 @@ class zcObserverIndexNow extends base
         );
     }
 
-    public function update(&$class, $eventID, &$p1, &$p2, &$p3, &$p4)
+    public function update(&$class, $eventID, $p1): void
     {
         global $db;
         switch ($eventID) {
             case 'NOTIFY_MODULES_UPDATE_PRODUCT_END':
-                // receive the action and product ID data array
+                // 'NOTIFY_MODULES_UPDATE_PRODUCT_END', ['action' => $action, 'products_id' => $products_id]
                 $products_id = (int)$p1['products_id'];
                 $product = $db->Execute("SELECT products_type, master_categories_id FROM " . TABLE_PRODUCTS . " WHERE products_id = " . $products_id);
                 $type_handler = zen_get_handler_from_type($product->fields['products_type']);
-                $cPath = $product->fields['master_categories_id'];
-
+                $cPath = zen_get_generated_category_path_rev($product->fields['master_categories_id']);
                 $url = zen_catalog_href_link($type_handler . '_info', 'cPath=' . $cPath . '&products_id=' . $products_id);
-
                 $this->submitToIndexNow($url);
-
                 break;
 
             case 'NOTIFY_ADMIN_CATEGORIES_UPDATE_OR_INSERT_FINISH':
-                // receive the action and category ID data array
+                // 'NOTIFY_ADMIN_CATEGORIES_UPDATE_OR_INSERT_FINISH', ['action' => $action, 'categories_id' => (int)$categories_id]
                 $cat_id = (int)$p1['categories_id'];
-
                 $url = zen_catalog_href_link('index', zen_get_path($cat_id));
-
                 $this->submitToIndexNow($url);
-
                 break;
+
+
             default:
                 break;
         }
     }
 
-    private function submitToIndexNow($url)
+    private function submitToIndexNow($url): void
     {
         global $messageStack;
         $indexnow_key = ZX_INDEXNOW_KEY;
@@ -61,12 +62,16 @@ class zcObserverIndexNow extends base
         ]);
         $full_url = $endpoint . '?' . $query;
 
+        if ($this->noSubmit) {
+            $messageStack->add_session('IndexNow url NOT submitted: "' . $url . '"', 'info');
+            return;
+        }
+
         $ch = curl_init($full_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         $indexnow_responses = [
             200 => ['OK', 'URL submitted successfully'],
@@ -78,10 +83,10 @@ class zcObserverIndexNow extends base
         ];
 
         if (isset($indexnow_responses[$http_code])) {
-            $message = "IndexNow response: {$indexnow_responses[$http_code][0]} - {$indexnow_responses[$http_code][1]}";
+            $message = "IndexNow response $http_code: {$indexnow_responses[$http_code][0]} - {$indexnow_responses[$http_code][1]}";
         } else {
             $message = "IndexNow submission failed. HTTP code: $http_code";
         }
-        $messageStack->add_session($message, ($http_code === 200 || $http_code === 202) ? 'success' : 'error');
+        $messageStack->add_session($message . ', $url:' . $url, ($http_code === 200 || $http_code === 202) ? 'success' : 'error');
     }
 }

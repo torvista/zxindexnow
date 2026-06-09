@@ -16,4 +16,5 @@ IndexNow plugin for Zen Cart
     <p>Only the URL is submitted, nothing else. You're are only notifying the search engine that this URL has some changes and should be (re)indexed. Submission is directly to Bing and no other search engine.</p>
     <p><strong>IMPORTANT:</strong> if for any reason you don't want to submit a specific product or category, you will have to uninstall the plugin before adding or updating the category or product.</p>
     <p>If you want to submit the URL to all supported search engines (currently Microsoft Bing, Naver, Seznam.cz, Yandex, Yep), you can change the endpoint in the observer file (auto.indexnow.php) to https://api.indexnow.org</p>
-    <hr>
+	<p><strong>TESTING:</strong> if you don't want to submit while testing: in the file<br>	zc_plugins\IndexNow\v1.0.0\admin\includes\classes\observers\auto.index_now.php<br>
+	set private bool $noSubmit = true;<br><hr>
